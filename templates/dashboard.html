@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Welcome, {{ username }}</h1>
+            <button class="logout-button" onclick="window.location.href='/logout'">Logout</button>
+        </header>
+        <main>
+            <div class="left-panel">
+                <h2>Your Profile</h2>
+                <p>Manage your profile and settings here.</p>
+            </div>
+            <div class="center-panel">
+                <img src="{{ url_for('static', filename='logo.png') }}" alt="Game Logo" class="logo">
+                <div class="play-button">
+                    <button onclick="window.location.href='/start_game'">Play</button>
+                </div>
+            </div>
+            <div class="right-panel">
+                <h2>Leaderboard</h2>
+                <ol>
+                    <li>User1 - 1000 points</li>
+                    <li>User2 - 900 points</li>
+                    <li>User3 - 800 points</li>
+                </ol>
+            </div>
+        </main>
+    </div>
+</body>
+</html>

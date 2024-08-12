@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bild zu Buttons</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+        #countdown, #image-container, #button-container {
+            display: none;
+            text-align: center;
+        }
+        #button-container {
+            display: grid;
+            grid-template-columns: repeat(2, 100px);
+            grid-gap: 10px;
+            justify-content: center;
+            margin-top: 20px;
+        }
+        button {
+            width: 100px;
+            height: 100px;
+            font-size: 16px;
+            cursor: pointer;
+            border: none;
+            border-radius: 4px;
+            background-color: #808080; /* Grau */
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        button.correct {
+            background-color: green !important;
+        }
+        button.incorrect {
+            background-color: red !important;
+        }
+        button:hover {
+            background-color: #666666;
+        }
+    </style>
+</head>
+<body>
+    <div id="countdown"></div>
+    <div id="image-container">
+        <img src="" alt="Bild" id="image">
+    </div>
+    <div id="button-container" style="display: none;">
+        <button onclick="recordResponse(1)">1</button>
+        <button onclick="recordResponse(2)">2</button>
+        <button onclick="recordResponse(3)">3</button>
+        <button onclick="recordResponse(4)">4</button>
+        <button onclick="recordResponse(5)">5</button>
+        <button onclick="recordResponse(6)">6</button>
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            var delay = {{ delay | tojson }};
+            var images = {{ images | tojson }};
+            var correctButtons = {{ correct_buttons | tojson }};
+            var currentIndex = 0;
+            var imageContainer = document.getElementById("image-container");
+            var buttonContainer = document.getElementById("button-container");
+            var countdownContainer = document.getElementById("countdown");
+            var results = [];
+
+            function showCountdown(seconds, callback) {
+                countdownContainer.style.display = "block";
+                var countdown = seconds;
+                countdownContainer.innerText = countdown;
+                var interval = setInterval(function() {
+                    countdown--;
+                    countdownContainer.innerText = countdown;
+                    if (countdown === 0) {
+                        clearInterval(interval);
+                        countdownContainer.style.display = "none";
+                        callback();
+                    }
+                }, 1000);
+            }
+
+            function showImage() {
+                if (currentIndex < images.length) {
+                    var img = document.getElementById("image");
+                    img.src = images[currentIndex];
+                    imageContainer.style.display = "block";
+
+                    setTimeout(function() {
+                        imageContainer.style.display = "none";
+                        showButtons();
+                    }, delay * 1000);
+                } else {
+                    submitResults();
+                }
+            }
+
+            function showButtons() {
+                buttonContainer.style.display = "grid";
+            }
+
+            window.recordResponse = function(buttonNumber) {
+                var isCorrect = buttonNumber === correctButtons[currentIndex];
+                results.push(isCorrect);
+                var buttons = buttonContainer.getElementsByTagName('button');
+                
+                for (var i = 0; i < buttons.length; i++) {
+                    buttons[i].disabled = true;
+                    if (i === correctButtons[currentIndex] - 1) {
+                        buttons[i].classList.add('correct');
+                    } else if (i === buttonNumber - 1) {
+                        buttons[i].classList.add('incorrect');
+                    }
+                }
+
+                setTimeout(function() {
+                    buttonContainer.style.display = "none";
+                    for (var i = 0; i < buttons.length; i++) {
+                        buttons[i].disabled = false;
+                        buttons[i].classList.remove('correct', 'incorrect');
+                    }
+                    currentIndex++;
+                    if (currentIndex < images.length) {
+                        showCountdown(3, showImage);
+                    } else {
+                        submitResults();
+                    }
+                }, delay * 1000);
+            }
+
+            function submitResults() {
+                fetch('/submit_results', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ results: results })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    window.location.href = '/result?accuracy=' + data.accuracy;
+                });
+            }
+
+            // Start mit dem Countdown
+            showCountdown(3, showImage);
+        });
+    </script>
+</body>
+</html>
