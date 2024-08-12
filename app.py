@@ -1,9 +1,9 @@
 from flask import Flask, jsonify, render_template, request, redirect, url_for, session
 import sqlite3
 from werkzeug.security import generate_password_hash, check_password_hash
+import random, os
 
 app = Flask(__name__)
-
 app.secret_key = "secret"
 
 def get_login_db_connection():
@@ -12,15 +12,56 @@ def get_login_db_connection():
     return conn
 
 
+def get_images(n:int)-> tuple[list]:
+    num_emotions = 6
+    base_path = "static/images/"
+    result_vals = []
+    result_paths = []
+    listed_dirs = [os.listdir(x) for x in [os.path.join(base_path, str(y)) for y in range(num_emotions)]]
+    for _ in range(n):
+        val = random.randint(0,num_emotions-1)
+        result_vals.append(val+1)
+        result_paths.append(os.path.join("images", str(val), listed_dirs[val][random.randint(0,len(listed_dirs[val]))]))
+    return (result_paths, result_vals)
+
 @app.route('/')
 def home():
+    if 'username' in session:
+        return redirect(url_for('dashboard'))
     return render_template('index.html')
+
+@app.route('/game')
+def game():
+    num_pics = 5
+    images_paths, correct_buttons = get_images(num_pics)
+    images = [url_for("static", filename=x) for x in images_paths]
+    delay = request.args.get('delay', default=1, type=int)
+    return render_template('game.html', images=images, correct_buttons=correct_buttons, delay=delay)
+
+@app.route('/submit_results', methods=['POST'])
+def submit_results():
+    data = request.get_json()
+    total_images = len(data['results'])
+    correct_responses = sum(data['results'])
+    accuracy = (correct_responses / total_images) * 100
+    return jsonify(accuracy=accuracy)
+
+@app.route('/result')
+def result():
+    accuracy = request.args.get('accuracy', default=0, type=float)
+    return f"Deine Genauigkeit ist {accuracy:.2f}%"
 
 @app.route('/start_game')
 def start_game():
-    # Hier kann man die Logik für den Start des Spiels einfügen
-    print("Game Started!")
+    if 'user_id' in session:
+        return redirect(url_for('game'))
     return redirect(url_for('home'))
+
+@app.route('/dashboard')
+def dashboard():
+    if 'username' not in session:
+        return redirect(url_for('login'))
+    return render_template('dashboard.html', username=session['username'])
 
 @app.route("/tutorial")
 def tutorial():
@@ -41,11 +82,10 @@ def login():
         if user and check_password_hash(user['password'], password):
             session['user_id'] = user['id']
             session['username'] = user['username']
-            return redirect(url_for('home'))
+            return redirect(url_for('dashboard'))
         else:
             return 'Invalid username or password'
     return render_template('login.html')
-
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -59,8 +99,7 @@ def register():
 
         try:
             cursor.execute("INSERT INTO users (username, password) VALUES (?, ?)", (username, hashed_password))
-        
-        except sqlite3.DatabaseError as E:
+        except sqlite3.IntegrityError:
             return render_template('register_failed.html')
         
         conn.commit()
